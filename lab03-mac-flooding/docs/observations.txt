@@ -1,0 +1,12 @@
+SOURCE: User-submitted real terminal outputs and screenshots, not rerun by assistant.
+Attack before: PHASE=before FRAMES_SENT=256 PREFIX=02ac0300 ELAPSED=1.060s
+Attack after: PHASE=after FRAMES_SENT=256 PREFIX=02ac0400 ELAPSED=1.068s
+FDB before attack: SW2 ether4 legitimate MAC 02:33:03:00:00:39.
+FDB after first attack: SW2 ether4 DYNAMIC 02:AC:03:00:00:00 through :FF (leading/trailing screenshots).
+Protection: SW2 bridge port ether4 learn=no.
+Filter stats baseline: ALLOW0=4 packets, ALLOW1=6, DROP=786 packets/36336 bytes.
+Filter stats after: ALLOW0=8 packets, ALLOW1=6, DROP=1554 packets/71664 bytes.
+Mistaken DROP only: attacker→PC1 ping 0/3, 100% loss.
+After whitelist correction: attacker→PC1 3/3, avg 1.178 ms; repeated 3/3, avg 0.848 ms.
+Final SW2 ether4 host table: 02:33:03:00:00:39 plus LOCAL 0C:C9:8A:99:00:03, no 02:AC:04:00:* observed.
+Caveat: 768 is rule counter delta, not number of unique MAC addresses.
