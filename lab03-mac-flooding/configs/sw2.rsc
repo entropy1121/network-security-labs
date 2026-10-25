@@ -1,4 +1,4 @@
-# RouterOS SW2: execute only on a fresh, unconfigured CHR bridge
+# SW2-CHR; first check no existing bridge/ports
 /system identity set name=LAB03-SW2
 /interface bridge add name=br-lab protocol-mode=rstp
 /interface bridge port add bridge=br-lab interface=ether1
