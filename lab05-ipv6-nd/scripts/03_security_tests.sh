@@ -64,7 +64,7 @@ ip netns exec l05pc1 ping -6 -c 2 -W 2 2000::2
 ip -n l05pc1 -6 neigh show 2000::2 dev eth0
 
 echo '===== DAD INTERFERENCE (2000::55aa) ====='
-tcpdump -ni l05aTr -U -s 0 -w "$EVD/05_dad_interference.pcap" 'icmp6' > "$EVD/05_capture.log" 2>&1 & CAP2=$!
+ip netns exec l05swa tcpdump -ni lan100 -U -s 0 -w "$EVD/05_dad_interference.pcap" 'icmp6' > "$EVD/05_capture.log" 2>&1 & CAP2=$!
 sleep 0.5; kill -0 "$CAP2"
 ip netns exec l05atk python3 "$ROOT/scripts/forge_nd.py" dad > "$EVD/05_injector.log" 2>&1 & INJECT=$!
 sleep 0.15
