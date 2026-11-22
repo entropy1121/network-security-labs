@@ -1,6 +1,6 @@
 # Network Security Labs
 
-网络安全课程实验记录，主要使用 GNS3、WSL2 Ubuntu、Linux Network Namespace、虚拟网络设备及相关安全测试工具。每项实验分别记录配置、实测结果、排错过程和未完成的部分，不把替代平台的结果当作原设备验证。
+网络安全课程实验记录，主要使用 GNS3、WSL2 Ubuntu、Linux Network Namespace、虚拟网络设备及相关安全测试工具。每项实验分别记录配置、实测结果、排错过程和未完成的部分。
 
 ## 实验目录
 
@@ -26,4 +26,4 @@
 
 使用过的环境和设备包括 Windows 11、WSL2 Ubuntu、GNS3、QEMU/KVM、MikroTik RouterOS、华为 CE12800 虚拟设备、VPCS、Linux Network Namespace、Wireshark 等。具体实验的设备与平台以各子目录 README 为准，不能据此认定所有环境目前均可直接运行。
 
-本仓库公开保存可复现的脚本和必要的结果说明，不上传大型虚拟机镜像、认证凭据或包含个人身份信息的正式课程报告。完整原始抓包、日志与提交版 Word 由本地实验档案保存。
+本仓库公开保存可复现的脚本和必要的结果说明。完整原始抓包、日志与提交版 Word 由本地实验档案保存。
