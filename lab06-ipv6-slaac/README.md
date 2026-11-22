@@ -1,28 +1,75 @@
-# Lab 06 · IPv6 无状态地址自动配置（SLAAC）
+# 课堂实验六：IPv6 无状态地址自动配置（SLAAC）
 
-状态（2026-11-22）：WSL GNS3 API 已恢复，使用 **Huawei CE12800（非 AR1kV）** 创建了 Lab06 第一阶段 R1—SWA—PC1 拓扑。R1 IPv6/RA 配置已提交，但 PC1 `ip auto` 尚未收到 RA，基线未通过；Windows Scapy/Npcap 已就绪但 VMnet8 与 WSL GNS3 的二层联通尚未证明。Linux namespace 的五阶段 SLAAC 对照实验已完成，不能视为原题指定设备的成功实测。见 [当日进度与截图清单](docs/progress-2026-11-22.md)。
+**实验日期：**2026-11-22  
+**主要环境：**Windows 11、WSL2 Ubuntu 24.04、GNS3 2.2.61、MikroTik CHR、VPCS、Wireshark / tcpdump
 
-在 WSL 通过 GNS3 API 建拓扑、启动节点和抓包，见 [命令行操作顺序](docs/cli.md)。
+本实验围绕 IPv6 的 Router Solicitation（RS）、Router Advertisement（RA）、无状态地址自动配置（SLAAC）与默认路由学习展开，采用抓包数据和终端输出相互验证。原指导书使用华为路由器；由于本地虚拟设备链路无法完成接收端报文验证，主要实测拓扑改为 GNS3 中的 MikroTik CHR。原华为配置保留在 `configs/` 供命令对照，不作为 CHR 的可执行配置。
 
-## 拓扑
+## 一、实验拓扑与地址规划
 
-| 二层链路 | 接入设备 | 地址 |
-|---|---|---|
-| A，GNS3 Ethernet Switch | R1 GE0/0/2、PC1（VPCS） | R1 为 `3001::1/64`，PC1 通过 SLAAC 生成地址 |
-| B，另一台 GNS3 Ethernet Switch | R1、R2、R3 各自的 GE0/0/1，另按指导书接入隔离的 VMnet8 Cloud | R1 为 `2000::1/64` / `fe80::1`，R2 为 `2000::2/64` / `fe80::2`，R3 与 VMnet8 使用 SLAAC |
+```text
+PC1（VPCS）── SWA ── R1（CHR）
+                        │
+                       SWB ─── R2（CHR）
+                        │
+                        ├────── R3（CHR）
+                        └────── Cloud_VMnet8 ── WSL eth4 / Windows VMnet8
+```
 
-两条链路保持二层独立。先完成 A，再连 B。用空白 AR1kV 节点，完成初始控制台登录后再粘贴配置。GNS3 模板的端口编号和控制台接口名应先对照。配置按文件分段粘贴，出现命令错误就记录原信息，纠正后再继续。
+| 链路 | 路由器接口 / 主机 | IPv6 前缀 | 作用 |
+|---|---|---|---|
+| A（SWA） | R1 `ether3`、PC1 | `3001::/64` | PC1 通过 RA 自动配置 IPv6 地址 |
+| B（SWB） | R1/R2/R3 `ether2`、Cloud | `2000::/64` | 单路由、多路由及默认路由选择 |
+| Windows 接口 | VMware Network Adapter VMnet8，ifIndex 64 | 目标前缀 `2000::/64` | 检查宿主系统能否学习 RA |
 
-## 执行顺序
+两组二层广播域独立；`Cloud_VMnet8` 绑定 WSL `eth4`，其网卡 MAC 为 `00:50:56:c0:00:08`。这条桥接链路在 WSL 侧能抓到 RA，但不能据此推定 Windows 主机已经接收并采用该通告。
 
-1. R1 应用 [A 链路基线](configs/R1-phase1.txt)。先在 PC1 至交换机的链路启动抓包，再执行 [VPCS 命令](configs/PC1.txt)。保存 RS、RA、PC1 地址和 Ping 结果。若 VPCS 不支持 `show ipv6`，保存 `ip auto` 输出，并用 `show ?` 核对版本支持的显示命令。
-2. 在 R1 应用 [RA 字段修改](configs/R1-ra-fields.txt)。等到新的 RA，或让 PC1 再执行 `ip auto`。以抓包中的 RA 正文核对四个字段。
-3. B 链路先只开 R1 的 RA。应用 [R1-B 配置](configs/R1-phase2.txt) 和 [R3 SLAAC 配置](configs/R3-slaac.txt)，记录 R3 的地址和默认路由。
-4. 在 R2 应用 [medium 配置](configs/R2-medium.txt)。抓到来自 `fe80::1` 和 `fe80::2` 的 RA 后，重新查看 R3 的 IPv6 路由表。
-5. 将 R2 改为 [high](configs/R2-high.txt)。抓到 R2 的新 RA 后再查看路由表。R3 抓包和路由表分别证明通告优先级和设备安装的路由。若需重跑同优先级对照，在 R2 的接口视图恢复 `ipv6 nd ra preference medium`，收到新 RA 后再检查。
-6. B 链路的 Windows VMnet8 部分在隔离的专用 VMware 网络内做。用 `ipconfig /all` 记录该适配器的地址与网关，用 `Get-NetRoute -AddressFamily IPv6 -DestinationPrefix '::/0' -InterfaceIndex <数字>` 查看对应接口的路由。把 `<数字>` 换成 `Get-NetIPInterface -AddressFamily IPv6` 查到的 VMnet8 接口索引。分别保留单路由、同优先级和 R2 high 三个阶段的输出。主机网卡的临时地址可以按实际情况记录，核心是确认 SLAAC 前缀和默认路由。
+## 二、主要实验结果
 
-抓包显示过滤器 `icmpv6.type == 133 || icmpv6.type == 134`。同一交换机上优先在接收端所在链路抓包。若看不到 RS，确认抓包先于 `ip auto` 启动。若看到 RA 但缺少自动地址，依次检查 PIO 的 A 位、前缀长度和 DAD。若已有地址但无默认路由，检查 RA 源地址、IPv6 外层 Hop Limit 和 Router Lifetime。
+| 实验环节 | 观察结果 |
+|---|---|
+| RS/RA 与 PC1 SLAAC | PC1 自动获得 `3001::2050:79ff:fe66:6800/64`；Ping R1 `3001::1` 5/5 成功 |
+| RA 参数修改 | 接收端 PCAP 确认 Cur Hop Limit 32、Router Lifetime 900 s、Reachable Time 600000 ms、Retrans Timer 2000 ms |
+| R3 单路由器 | R3 自动生成 `2000::e17:68ff:fe42:1/64`，并通过 R1 链路本地地址学习 `::/0` |
+| 双路由器 Medium | R1/R2 均通告 Medium，R3 出现两条活动默认路由（ECMP） |
+| R2 High | R2 的 RA 已验证为 High，R1 仍为 Medium；RouterOS R3 实际仍保留两条 ECMP 默认路由 |
+| Cloud 与 WSL | WSL `eth4` 抓到 R1/R2 共四条真实 RA，通告前缀均为 `2000::/64` |
+| Windows VMnet8 | 接口 RouterDiscovery 已启用，但只有 `fe80::` 地址，未学习全局 IPv6 地址和默认路由 |
+| RA 安全扩展 | 保留伪造 RA、受控发送及抓包核验脚本；接收端攻击效果未获得相应报文证据 |
 
-- [验收与实验记录](docs/verification.md)
-- [课堂测验速查](docs/quiz.md)
+其中 **R2 High 后 R3 仍为 ECMP** 是当前 RouterOS 的实际实验现象。RA 通告优先级与接收设备的路由选用结果必须分别判断，不能仅凭 RA 字段推断主机一定切换了默认路由。
+
+## 三、协议分析要点
+
+1. **RS（ICMPv6 Type 133）：**主机主动请求路由器通告。
+2. **RA（ICMPv6 Type 134）：**通告前缀、Router Lifetime、Cur Hop Limit、Reachable Time、Retrans Timer 等参数；前缀选项包含 L（On-link）和 A（Autonomous）标志。
+3. **IPv6 Hop Limit 与 RA Cur Hop Limit：**前者位于 IPv6 首部，链路上的有效 RA 通常要求 Hop Limit=255；后者是 RA 内向主机建议的跳数限制，二者并非同一字段。
+4. **接收端判定：**RA 可以在网络接口被抓到，不意味着系统必然安装地址或默认路由；需同时核对主机地址、路由表与连通性。
+
+在本次 VPCS 测试中，CHR 默认通告的 Cur Hop Limit 为 0 时 PC1 `ip auto` 未成功；将 `/ipv6 nd` 的 `hop-limit` 配置为 64 后 PC1 正常获取地址。这属于当前 VPCS/CHR 组合的兼容性观察。
+
+## 四、文件与复现入口
+
+| 文件 | 内容 |
+|---|---|
+| [GNS3 API 脚本](scripts/gns3_lab06.py) | 建立/检查项目、设备状态与接收侧抓包 |
+| [Linux SLAAC 对照脚本](scripts/linux_slaac.sh) | 独立 network namespace 对照实验 |
+| [RA 抓包检查](scripts/verify_ra_capture.py) | 解析并校验真实抓包中的通告字段 |
+| [RA 安全实验说明](docs/ra-security-lab.md) | 隔离网络下的安全测试思路及限制 |
+| [实验结果与证据](docs/verification.md) | 各阶段验证结果和材料索引 |
+| [阶段实验记录](docs/progress-2026-11-22.md) | 详细实验输出、排障经过和抓包对应关系 |
+| [实验总结](docs/final-handoff-2026-11-22.md) | 关键成果及未完成环节 |
+| [命令行说明](docs/cli.md) | 原华为设备的历史操作记录与脚本入口 |
+| [华为参考配置](configs/) | 原指导书平台的命令存档，非 CHR 命令 |
+
+实际运行 GNS3 项目之前，应确认本机的项目名称、节点编号与接口映射。脚本可能要求已有项目和用户本地 GNS3 API 配置，不应直接在其他人的运行中拓扑上执行。
+
+## 五、抓包与安全注意事项
+
+Wireshark 过滤表达式：
+
+```wireshark
+icmpv6.type == 133 || icmpv6.type == 134
+```
+
+RA Spoofing 和 RA Flooding 必须限定在经授权的隔离网络。伪造 RA 的构造结果、发送端记录、接收端抓包和主机路由变化属于不同层次的证据；没有接收端和路由变化证据时，不可据此声称攻击已经产生效果。
