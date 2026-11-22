@@ -29,7 +29,7 @@ LINK_LAYOUT = {
 }
 BASELINE_NODES = ("R1", "SWA", "PC1")
 BASELINE_LINKS = ("r1-swa", "pc1-swa")
-CAPTURE_LINKS = ("pc1-swa", "r3-swb")
+CAPTURE_LINKS = ("pc1-swa", "r1-swa", "r3-swb")
 
 
 class LabError(Exception):
