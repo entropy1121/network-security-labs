@@ -1,35 +1,35 @@
-# Lab06 最终交付状态（2026-11-22）
+# Lab06 实验结果与讨论（2026-11-22）
 
-本文件为真实实验验收摘要，区分成功与未通过，不编造实验输出。
+## 1. IPv6 无状态地址自动配置
 
-## 已通过
+在 GNS3 中采用 MikroTik CHR 路由器、VPCS 主机与交换机搭建了 A、B 两组独立二层链路。A 链路中 R1 通告 `3001::/64`，PC1 通过 SLAAC 自动生成 `3001::2050:79ff:fe66:6800/64`，与 R1 的 `3001::1` 通信测试 5/5 成功。抓包中可以观察 RS/RA 交互和路由器通告中的前缀选项。
 
-1. GNS3 + MikroTik CHR：PC1 从 R1 的 RA 生成 `3001::2050:79ff:fe66:6800/64`，`ping 3001::1` 成功 5/5。
-2. PC1 侧 RA 实测更改 Cur Hop Limit=32、Router Lifetime=900s、Reachable Time=600000ms、Retrans Timer=2000ms。VPCS 正常 SLAAC 需要将 ND 通告 Cur Hop Limit 恢复至 64。
-3. B 链路：R3 从 R1 的 RA 生成 `2000::e17:68ff:fe42:1/64`，经 R1 链路本地下一跳安装 `::/0`，Ping `2000::1` 成功。
-4. R1、R2 均 Medium：R3 实测两条 `DAg +` 活动 `::/0` 路由，`belongs-to="slaac"`。
-5. R2 High：真实新抓包证实 R2 发送 High RA，但 RouterOS R3 **仍保留两条 ECMP 默认路由**；不伪造指导书期待的高优先级独占选路。
-6. GNS3 Cloud 接入 WSL `eth4`（MAC `00:50:56:c0:00:08`）后，WSL 25 秒抓到 R1、R2 的 RA 共 4 条，0 kernel drops。
+在 RA 参数测试中，接收端抓包显示 Cur Hop Limit=32、Router Lifetime=900 s、Reachable Time=600000 ms、Retrans Timer=2000 ms。随后恢复适用于本次 VPCS 测试的参数，继续进行多路由器实验。
 
-## Windows VMnet8 未通过
+## 2. 多路由器通告与默认路由
 
-- Windows VMnet8 ifIndex 64，RouterDiscovery=Enabled，ConnectionState=Connected，但仅有 `fe80::7986:6f53:884a:139%64`，**无 `2000::/64` 全局地址和 `::/0` 默认路由**；Ping R1 链路本地地址报告目标不可达。
-- 用户上传 `lab06-windows.pcapng`：实际解析 130 帧，IPv6=104（NA Type 136:60、MLDv2 Type 143:44），RS/RA=0；主要捕获 Wi-Fi MAC 不能代表 VMnet8 RX。
-- 用户上传 `lab06-vmnet8.pcapng`：通过 Pktmon 组件 1 专抓 VMware VMnet8，实际解析 20 帧（IPv4=10，ARP=10），IPv6/RS/RA=0，帧跨度约 49.77 秒。本链路未能在 Windows 侧观察到 RA，不能声称 SLAAC 成功；根因可能在 WSL 镜像接入 / Windows 网卡处理路径，但未最终证实。
-- 已停止重复该 WSL-Cloud-VMnet8 方案，避免干扰宿主网络。
+B 链路使用 `2000::/64`。仅 R1 发送 RA 时，R3 自动生成 `2000::e17:68ff:fe42:1/64`，并安装下一跳指向 R1 链路本地 IPv6 地址的默认路由；Ping `2000::1` 成功。
 
-## 安全附加题证据边界
+R1、R2 同时发布 Medium Preference 时，R3 路由表显示两条活动默认路由。随后将 R2 的 Router Preference 改为 High，抓包确认 R2 的 RA 字段已经变化，但 RouterOS R3 仍保留两条 ECMP 默认路由。这表明 RA 首部所通告的优先级与特定设备实现中的选路结果需要分别验证。
 
-- Windows Scapy/Npcap RA Spoofing 和 bounded RA 发包脚本构造/dry-run 已准备；此前两份接收端相关抓包 RA=0，没有伪造 RA 被接收或路由劫持的证据。
-- 没有 RA Flooding 导致 DoS、丢包或延迟升高的可验证记录。不得以构造好的 `constructed_*_NOT_CAPTURED.pcap` 冒充接收端证据。
-- 发包仅限授权、独立隔离的虚拟二层网络，禁止在共享 VMnet8、真实 Wi-Fi 或校园网发送干扰性 RA。
+## 3. Windows VMnet8 的跨平台观察
 
-## 已生成的本会话交付文件
+将 GNS3 的 SWB 通过 Cloud 接到 WSL `eth4` 后，在 `eth4` 上捕获 R1、R2 共 4 条 RA，均通告 `2000::/64`。Windows VMware VMnet8（接口索引 64）启用了 Router Discovery，但只显示链路本地地址，没有获得 `2000::/64` 全局地址或 IPv6 默认路由。
 
-- `Lab06_IPv6_SLAAC_实验报告_实测终稿.docx`：6 页、已有真实用户截图、明确标注未通过项。
-- 对应 PDF、两份 Windows PCAPNG 统计 CSV、包含用户截图和现有脚本的 ZIP 交付包。
-- 这些二进制文件保存在本次会话附件中；当前 GitHub 工具仅支持 UTF-8 文本文件，**没有将 DOCX/PDF/原始 PCAP 上传公共仓库**。
+针对 Windows 网卡的 Pktmon 捕获共记录 20 帧（10 帧 IPv4、10 帧 ARP），未观察到 IPv6 帧；另一次非定向抓包虽有 ICMPv6 NA 与 MLDv2，但没有 RS/RA。结合 WSL 侧捕获，说明问题主要出现在从 WSL 镜像接口到 Windows 宿主协议栈的报文交付或抓包观察路径，具体机制尚有待进一步验证。
 
-## 原始依据
+## 4. RA 安全性分析
 
-完整复现和阶段记录：[progress-2026-11-22.md](progress-2026-11-22.md)；Linux namespace 对照：[linux-results.md](linux-results.md)。最终结论应以这两份日志、用户本地 GNS3 PCAP 和本次对 Windows PCAPNG 的原始解析为准。
+RA Spoofing 的潜在影响是主机接受未经授权的路由器通告后改变默认路由或 IPv6 配置；RA Flooding 则可能增加接收端处理和网络负荷。实验仓库保存了 Scapy 构造、受控发送和捕获检查脚本。现有接收端抓包未观察到相应伪造 RA，也未测得默认路由改变或业务中断，因此相关实验主要提供报文构造和防护机制分析。
+
+可针对接入交换机的非可信端口使用 RA Guard 进行通告过滤，并根据实际网络情况结合端口隔离与监控减少未经授权的 RA 影响。主动测试仅适用于经授权的隔离实验环境。
+
+## 5. 结论与材料
+
+本次实验通过接收端抓包、IPv6 地址信息、动态路由表和 Ping 结果，完成了 SLAAC 基线、RA 字段变化及多路由器通告的主要验证；同时记录了 RouterOS 选路行为和 Windows 虚拟网卡互通的跨平台差异。
+
+原始 PCAP、终端截图及可编辑课程报告由本地档案保存；代码、配置参考、实验记录与分析见本仓库。
+
+- [Lab06 实验主页](../README.md)
+- [证据索引](verification.md)
+- [详细进度日志](progress-2026-11-22.md)
