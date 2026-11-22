@@ -11,6 +11,7 @@
 | [Lab 03](lab03-mac-flooding/README.md) | GNS3 MikroTik CHR MAC 泛洪与二层端口防御 | 2026-10-26 | 实测与复现代码 |
 | [Lab 04](lab04-multi-exit-vrrp/README.md) | 双出口 VRRP 网关冗余与故障切换（WSL2） | 2026-10-26 | 实测与故障分析 |
 | [Lab 05](lab05-ipv6-nd/README.md) | IPv6 邻居发现协议（NDP） | 2026-11-08 | 部分验证完成，附平台限制与测试记录 |
+| [Lab 06](lab06-ipv6-slaac/README.md) | IPv6 无状态地址自动配置（SLAAC） | 待实测 | 分阶段配置、验收表与测验速查 |
 
 ## Lab 05 — IPv6 Neighbor Discovery
 

@@ -1,0 +1,3 @@
+ip auto
+show ipv6
+ping 3001::1

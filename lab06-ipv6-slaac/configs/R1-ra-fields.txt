@@ -1,0 +1,8 @@
+system-view
+interface GigabitEthernet0/0/2
+ipv6 nd ra hop-limit 32
+ipv6 nd ra router-lifetime 900 1
+ipv6 nd nud reachable-time 600000
+ipv6 nd ns retrans-timer 2000
+return
+display ipv6 interface GigabitEthernet0/0/2

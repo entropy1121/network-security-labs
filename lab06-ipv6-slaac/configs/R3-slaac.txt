@@ -1,0 +1,9 @@
+system-view
+sysname R3
+ipv6
+interface GigabitEthernet0/0/1
+ipv6 enable
+ipv6 address auto global default
+return
+display ipv6 interface GigabitEthernet0/0/1
+display ipv6 routing-table

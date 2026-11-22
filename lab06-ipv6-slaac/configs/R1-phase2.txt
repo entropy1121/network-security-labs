@@ -1,0 +1,8 @@
+system-view
+interface GigabitEthernet0/0/1
+ipv6 enable
+ipv6 address fe80::1 link-local
+ipv6 address 2000::1/64
+undo ipv6 nd ra halt
+return
+display ipv6 interface GigabitEthernet0/0/1
