@@ -24,10 +24,13 @@ def ip(*args, **kw):
 
 def cleanup():
     for role in ROLES:
-        ip("netns", "del", f"{PREFIX}-{role}", check=False)
-    ip("link", "del", BRIDGE, check=False)
+        subprocess.run(["ip", "netns", "del", f"{PREFIX}-{role}"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    subprocess.run(["ip", "link", "del", BRIDGE],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
     for host, _ in ROLES.values():
-        ip("link", "del", host, check=False)
+        subprocess.run(["ip", "link", "del", host],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
 
 
 def main():
@@ -63,9 +66,14 @@ def main():
        "net.ipv6.conf.c0.accept_ra=2", "net.ipv6.conf.c0.autoconf=1",
        "net.ipv6.conf.c0.disable_ipv6=0")
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
-    capture = subprocess.Popen(["tcpdump", "-U", "-i", "ch", "-w",
-                                str(out / "ra-spoof.pcap"), "icmp6"])
+    capture = subprocess.Popen(["tcpdump", "-U", "-i", "sp-ch", "-w",
+                                str(out / "ra-spoof.pcap"), "icmp6"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                               text=True)
     time.sleep(1)
+    if capture.poll() is not None:
+        error = capture.stderr.read().strip()
+        raise SystemExit(f"tcpdump failed on sp-ch: {error}")
     for _ in range(30):
         ll = ip("netns", "exec", f"{PREFIX}-client", "ip", "-6", "addr",
                 "show", "dev", "c0", capture=True).stdout
@@ -94,7 +102,9 @@ def main():
         validlifetime=3600, preferredlifetime=1800) / sc.ICMPv6NDOptSrcLLAddr(lladdr="02:aa:bb:cc:dd:ee")
     sc.sendp(fake, iface="sp-sh", verbose=False)
     time.sleep(3)
-    capture.terminate(); capture.wait()
+    capture.terminate()
+    capture.wait(timeout=5)
+    capture.stderr.close()
     route = ip("netns", "exec", f"{PREFIX}-client", "ip", "-6", "route",
                "show", "default", capture=True).stdout
     (out / "client-default-routes.txt").write_text(route)
