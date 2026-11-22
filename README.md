@@ -7,14 +7,14 @@
 下表由 GitHub Actions 根据实际实验文件夹自动维护；新增实验或更新子目录后，会在提交到 `main` 时检查并更新目录。
 
 <!-- LAB_INDEX_START -->
-| 实验 | 主题 | 详细说明 |
-|---|---|---|
-| Lab 01 | ACL 访问控制与包过滤 | [查看实验](lab01-acl-filtering/README.md) |
-| Lab 02 | MAC 地址学习与端口安全 | [查看实验](lab02-mac-security/README.md) |
-| Lab 03 | MAC 泛洪与二层端口防御 | [查看实验](lab03-mac-flooding/README.md) |
-| Lab 04 | 多出口网关冗余与 VRRP 故障切换 | [查看实验](lab04-multi-exit-vrrp/README.md) |
-| Lab 05 | IPv6 邻居发现协议（NDP） | [查看实验](lab05-ipv6-nd/README.md) |
-| Lab 06 | IPv6 无状态地址自动配置（SLAAC） | [查看实验](lab06-ipv6-slaac/README.md) |
+| 实验 | 主题 | 最近提交 | 详细说明 |
+|---|---|---|---|
+| Lab 01 | ACL 访问控制与包过滤 | 2026-10-19 | [查看实验](lab01-acl-filtering/README.md) |
+| Lab 02 | MAC 地址学习与端口安全 | 2026-10-19 | [查看实验](lab02-mac-security/README.md) |
+| Lab 03 | MAC 泛洪与二层端口防御 | 2026-11-22 | [查看实验](lab03-mac-flooding/README.md) |
+| Lab 04 | 多出口网关冗余与 VRRP 故障切换 | 2026-11-22 | [查看实验](lab04-multi-exit-vrrp/README.md) |
+| Lab 05 | IPv6 邻居发现协议（NDP） | 2026-11-22 | [查看实验](lab05-ipv6-nd/README.md) |
+| Lab 06 | IPv6 无状态地址自动配置（SLAAC） | 2026-11-22 | [查看实验](lab06-ipv6-slaac/README.md) |
 <!-- LAB_INDEX_END -->
 
 ## 最新实验：Lab 06 — IPv6 无状态地址自动配置
