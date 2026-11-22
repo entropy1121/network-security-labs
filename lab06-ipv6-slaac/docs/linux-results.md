@@ -10,4 +10,4 @@
 | 双 medium | 两条默认路由，查询离链目标选 fe80::1 |
 | R2 high | 两条默认路由仍在，同一目标改选 fe80::2 |
 
-B 链路三个阶段均对在链路内的 R1 Ping 2/2。离链选择由 route get 验证。Reachable Time、Retrans Timer 和报文字段需对照抓包。华为原生、VMnet8 和两项附加安全实验待验证。
+B 链路三个阶段均对在链路内的 R1 Ping 2/2。离链选择由 route get 验证。a-base 帧 4 为 RS，帧 5 为 RA，均通过校验和复算。基线 RA 有 PIO 与源链路层地址两个选项，有效/首选期 86400/14400 秒。a-fields 帧 3 和 8 的四项参数为 32、900 s、600000 ms、2000 ms。b-medium 帧 1/3 均为 medium；b-high 帧 1 的 R2 为 high，帧 4 的 R1 为 medium。华为原生、VMnet8 和两项附加安全实验待验证。
