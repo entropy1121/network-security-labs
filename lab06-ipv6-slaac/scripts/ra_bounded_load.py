@@ -11,8 +11,8 @@ from pathlib import Path
 MAX_PPS = 10
 MAX_SECONDS = 3
 PREFIX = "l6load"
-BRIDGE = "l6loadbr"
-ROLES = {"router": ("rh", "r0"), "client": ("ch", "c0"), "sender": ("sh", "s0")}
+BRIDGE = "l6ldbr"
+ROLES = {"router": ("ld-rh", "r0"), "client": ("ld-ch", "c0"), "sender": ("ld-sh", "s0")}
 
 
 def cmd(*args, check=True, capture=False):
@@ -29,6 +29,8 @@ def cleanup():
     for role in ROLES:
         ip("netns", "del", f"{PREFIX}-{role}", check=False)
     ip("link", "del", BRIDGE, check=False)
+    for host, _ in ROLES.values():
+        ip("link", "del", host, check=False)
 
 
 def main():
@@ -61,7 +63,7 @@ def main():
         ip("-n", f"{PREFIX}-{role}", "link", "set", inside, "up")
     ip("-n", f"{PREFIX}-router", "-6", "addr", "add", "2001:db8:6::1/64", "dev", "r0")
     ip("-n", f"{PREFIX}-sender", "-6", "addr", "add", "fe80::dead:beef/64", "dev", "s0", "nodad")
-    ip("netns", "exec", f"{PREFIX}-client", "sysctl", "-qw", "net.ipv6.conf.c0.accept_ra=1")
+    ip("netns", "exec", f"{PREFIX}-client", "sysctl", "-qw", "net.ipv6.conf.c0.accept_ra=2")
     out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
     cap=subprocess.Popen(["tcpdump","-U","-i","ch","-w",str(out/"ra-bounded.pcap"),"icmp6"])
     time.sleep(.5)
@@ -69,7 +71,7 @@ def main():
         src="fe80::dead:beef",dst="ff02::1",hlim=255)/sc.ICMPv6ND_RA(routerlifetime=60)
     count=a.pps*a.seconds; delay=1/a.pps; start=time.monotonic()
     for _ in range(count):
-        sc.sendp(packet,iface="sh",verbose=False);time.sleep(delay)
+        sc.sendp(packet,iface="ld-sh",verbose=False);time.sleep(delay)
     elapsed=time.monotonic()-start
     cap.terminate();cap.wait()
     result={"configured_pps":a.pps,"duration_limit_seconds":a.seconds,
