@@ -1,0 +1,49 @@
+name: 自动更新实验目录
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'lab*/**'
+      - 'scripts/update_readme.py'
+      - '.github/workflows/update-readme.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-readme-main
+  cancel-in-progress: false
+
+jobs:
+  refresh-index:
+    name: 检查并更新 README 实验目录
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码与完整提交历史
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 更新实验索引
+        run: python3 scripts/update_readme.py
+
+      - name: 提交索引变化
+        run: |
+          if git diff --quiet -- README.md; then
+            echo "README 实验目录没有变化"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md
+          git commit -m 'docs: 自动更新实验目录'
+          git push origin HEAD:main
