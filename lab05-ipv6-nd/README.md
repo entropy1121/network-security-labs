@@ -1,37 +1,38 @@
-# Lab 05 — IPv6 Neighbor Discovery (NDP)
+# 课堂实验五：IPv6 邻居发现协议（NDP）
 
-**Updated: 2026-11-08.** This repository contains coursework experiments performed in **GNS3 2.2.61 / VPCS** and **isolated Linux Network Namespace** environments. The original Huawei CE12800 experiment and the alternative platforms are deliberately distinguished.
+**最后核对：**2026-11-08  
+**实验环境：**GNS3 2.2.61、VPCS 与隔离的 Linux Network Namespace；另保留 Huawei CE12800 测试记录。
 
-## Verified results
+## 实验内容与结果
 
-| Exercise | Platform | Observed outcome |
+| 实验项目 | 使用平台 | 实测结果 |
 |---|---|---|
-| NS / NA address resolution | GNS3 built-in Ethernet Switch + VPCS | Both VLAN100 and VLAN200: four same-VLAN ping directions, 3/3 replies each. ICMPv6 NS and NA captured. |
-| Cross-switch 802.1Q trunk | GNS3 built-in switches + VPCS | VLAN100 PC1↔PC5 and VLAN200 PC3↔PC6: all four ping directions 3/3. Trunk PCAP: 16 VLAN100 and 16 VLAN200 tagged frames. |
-| DAD (unique / duplicate) | Isolated Linux Namespace | Unique address accepted; duplicate address detected with `dadfailed tentative`. |
-| Link-local and static neighbor mapping | Isolated Linux Namespace | Link-local ping 2/2; correct static MAC 2/2; deliberately wrong MAC 0/2; deletion restores 2/2. |
-| NUD state observation | Isolated Linux Namespace | `REACHABLE`, `DELAY`, `INCOMPLETE` observed; `STALE` and `PROBE` **not confirmed**. |
-| NS cache pollution demonstration | Isolated Linux Namespace | Neighbor-cache pollution observed in the controlled test. |
-| NA spoofing / DAD interference | Isolated Linux Namespace | Attempts recorded; **success not confirmed**. |
-| Anycast routing demonstration (`3888::/128`) | Temporary Linux Namespace routing model | Both paths ping 3/3 following route selection; SWA PCAP has 3 request/reply pairs, SWB PCAP only 2 pairs. |
+| NS/NA 地址解析 | GNS3 内置 Ethernet Switch + VPCS | VLAN100、VLAN200 内四个 Ping 方向均为 3/3 成功，抓到 ICMPv6 NS/NA |
+| 跨交换机 802.1Q Trunk | GNS3 内置交换机 + VPCS | VLAN100 PC1↔PC5、VLAN200 PC3↔PC6，四个方向均 3/3；Trunk PCAP 中 VLAN100 和 VLAN200 标签报文各 16 帧 |
+| DAD 唯一地址与重复地址检测 | Linux Namespace | 唯一地址通过；重复地址呈现 `dadfailed tentative` |
+| 链路本地通信及静态邻居映射 | Linux Namespace | Link-local Ping 2/2；正确静态 MAC 2/2；错误 MAC 0/2；删除后恢复 2/2 |
+| NUD 邻居状态观察 | Linux Namespace | 观察到 `REACHABLE`、`DELAY`、`INCOMPLETE`；`STALE`、`PROBE` 未确认 |
+| 邻居缓存污染演示 | Linux Namespace | 在受控测试中观察到邻居缓存污染 |
+| NA 欺骗与 DAD 干扰 | Linux Namespace | 有操作记录，但未确认预期攻击效果 |
+| 任意播路由对照（`3888::/128`） | 独立 Linux Namespace 模型 | 路由选路后两条路径的 Ping 均 3/3；SWA 捕获 3 对请求/应答，SWB 捕获 2 对 |
 
-**Huawei CE12800 (VRP 8.180):** VLAN, trunk, Vlanif, and IPv6 settings were entered and inspected, but end-to-end unicast forwarding did **not** pass the actual packet tests. The GNS3 built-in switch results do **not** prove Huawei CE12800 forwarding or native anycast operation. The Windows VMnet8 scenario from the teaching material was not fully replicated.
+## 华为设备与替代平台的区别
 
-See [verification results](docs/verification-2026-11-08.md) and the [public, anonymized report summary](docs/report-public.md).
+华为 CE12800（VRP 8.180）已完成 VLAN、Trunk、Vlanif 和 IPv6 配置检查，但端到端单播转发未通过实际报文测试。GNS3 内置交换机上的成功结果**不能等同于** CE12800 转发成功；独立 Linux Namespace 的任意播演示也不等于华为设备原生任意播行为。
 
-## Repository layout
+参见 [详细验证记录](docs/verification-2026-11-08.md) 与 [公开实验报告摘要](docs/report-public.md)。
 
-- `scripts/`: earlier isolated Linux IPv6 experiment scripts, kept for history.
-- `gns3/scripts/05_fix_verify.py` and `10_*.py`–`14_*.py`: Huawei diagnostics, control project, and GNS3 stable-project build/recovery.
-- `gns3/scripts/16_trunk_cross_switch.py`: cross-switch 802.1Q test, used after the stable project was verified.
-- `isolated/scripts/15_neighbor_batch.py`: static-neighbor and NUD test.
-- `isolated/scripts/17_anycast_isolated.py`: standalone, temporary, routing-level anycast model.
-- `docs/`: reviewed results and limitations.
+## 目录结构与复现入口
 
-## Reproduction notes
+- `scripts/`：早期 Linux IPv6 对照实验脚本，作为历史记录保存。
+- `gns3/scripts/05_fix_verify.py`、`10_*.py`—`14_*.py`：华为设备诊断、控制项目和稳定拓扑构建/恢复。
+- `gns3/scripts/16_trunk_cross_switch.py`：跨交换机 802.1Q 测试。
+- `isolated/scripts/15_neighbor_batch.py`：静态邻居和 NUD 测试。
+- `isolated/scripts/17_anycast_isolated.py`：创建并清理临时 Namespace 的任意播路由对照。
+- `docs/`：经检查的实测记录与平台差异说明。
 
-The GNS3 Python utilities are **experiment-history scripts, not a universal installer**. They contain safety checks for existing project names and UUIDs, use the local GNS3 API credentials from the user's configuration, and may require the original `~/network-security/Lab05_GNS3_Huawei_AutoKit` directory and saved state. In particular, **do not rerun `13_build_stable.py` on the already-created project**. Scripts 14 and 16 import its helpers when placed in the same `scripts` directory.
+GNS3 的 Python 工具是实验历史脚本，**不是可任意重复执行的一键安装器**。它们依赖原有项目名称、UUID、本机 GNS3 API 配置和部分历史工作目录。尤其不要对已建立的稳定项目直接重复执行 `13_build_stable.py`；脚本 14、16 会导入同目录下其他辅助函数。
 
-The Linux namespace tests require root privileges and a suitable isolated test network; script 15 expects the previously created `l05*` namespaces. Script 17 creates and removes its own temporary namespaces. Read source and verify local names/paths before executing anything.
+Linux Namespace 实验需要管理员权限与隔离网络。脚本 15 依赖已经建立的 `l05*` Namespace；脚本 17 会创建并移除自己的临时 Namespace。运行前先核对脚本涉及的接口、路径与设备名称。
 
-No virtual disk image, GNS3 secrets, personally identifying course-report cover page, or raw final DOCX is included in this public repository. Original packet captures and full console logs remain in the experiment's local evidence directory. Do not present the anonymized report as the official signed submission.
+仓库不提供虚拟磁盘镜像、GNS3 凭据、含个人信息的报告封面或原始完整 DOCX。抓包和完整控制台日志保存在本地实验档案。
