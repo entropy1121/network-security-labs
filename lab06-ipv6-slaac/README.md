@@ -1,6 +1,6 @@
 # Lab 06 · IPv6 无状态地址自动配置（SLAAC）
 
-状态：配置与验收表已准备。AR1kV、VPCS 和 VMnet8 的实测结果待采集。
+状态（2026-11-22）：WSL GNS3 API 已恢复，使用 **Huawei CE12800（非 AR1kV）** 创建了 Lab06 第一阶段 R1—SWA—PC1 拓扑。R1 IPv6/RA 配置已提交，但 PC1 `ip auto` 尚未收到 RA，基线未通过；Windows Scapy/Npcap 已就绪但 VMnet8 与 WSL GNS3 的二层联通尚未证明。Linux namespace 的五阶段 SLAAC 对照实验已完成，不能视为原题指定设备的成功实测。见 [当日进度与截图清单](docs/progress-2026-11-22.md)。
 
 在 WSL 通过 GNS3 API 建拓扑、启动节点和抓包，见 [命令行操作顺序](docs/cli.md)。
 
