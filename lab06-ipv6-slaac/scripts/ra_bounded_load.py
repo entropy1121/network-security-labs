@@ -27,10 +27,13 @@ def ip(*args, **kw):
 
 def cleanup():
     for role in ROLES:
-        ip("netns", "del", f"{PREFIX}-{role}", check=False)
-    ip("link", "del", BRIDGE, check=False)
+        subprocess.run(["ip", "netns", "del", f"{PREFIX}-{role}"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    subprocess.run(["ip", "link", "del", BRIDGE],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
     for host, _ in ROLES.values():
-        ip("link", "del", host, check=False)
+        subprocess.run(["ip", "link", "del", host],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
 
 
 def main():
@@ -65,15 +68,19 @@ def main():
     ip("-n", f"{PREFIX}-sender", "-6", "addr", "add", "fe80::dead:beef/64", "dev", "s0", "nodad")
     ip("netns", "exec", f"{PREFIX}-client", "sysctl", "-qw", "net.ipv6.conf.c0.accept_ra=2")
     out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
-    cap=subprocess.Popen(["tcpdump","-U","-i","ch","-w",str(out/"ra-bounded.pcap"),"icmp6"])
+    cap=subprocess.Popen(["tcpdump","-U","-i","ld-ch","-w",str(out/"ra-bounded.pcap"),"icmp6"],
+                         stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True)
     time.sleep(.5)
+    if cap.poll() is not None:
+        error=cap.stderr.read().strip()
+        raise SystemExit(f"tcpdump failed on ld-ch: {error}")
     packet=sc.Ether(src="02:aa:bb:cc:dd:ef",dst="33:33:00:00:00:01")/sc.IPv6(
         src="fe80::dead:beef",dst="ff02::1",hlim=255)/sc.ICMPv6ND_RA(routerlifetime=60)
     count=a.pps*a.seconds; delay=1/a.pps; start=time.monotonic()
     for _ in range(count):
         sc.sendp(packet,iface="ld-sh",verbose=False);time.sleep(delay)
     elapsed=time.monotonic()-start
-    cap.terminate();cap.wait()
+    cap.terminate();cap.wait(timeout=5);cap.stderr.close()
     result={"configured_pps":a.pps,"duration_limit_seconds":a.seconds,
             "frames_sent":count,"elapsed_seconds":round(elapsed,3),
             "claim":"bounded packet-processing observation only; no service-exhaustion claim"}
